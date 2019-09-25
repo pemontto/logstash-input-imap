@@ -149,6 +149,19 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
     end
   end
 
+  def find_content(parts, found=nil)
+    return found if found
+    if parts.parts.count > 0
+      parts.parts.each do |part|
+        found = find_content(part)
+        return found if found
+      end
+    elsif parts.content_type.match @content_type_re
+      return parts.decoded
+    end
+    return nil
+  end
+
   def parse_mail(mail)
     # Add a debug message so we can track what message might cause an error later
     @logger.debug? && @logger.debug("Working with message_id", :message_id => mail.message_id)
@@ -159,8 +172,7 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       message = mail.body.decoded
     else
       # Multipart message; use the first text/plain part we find
-      part = mail.parts.find { |p| p.content_type.match @content_type_re } || mail.parts.first
-      message = part.decoded
+      message = find_content(mail.parts)
     end
 
     @codec.decode(message) do |event|
