@@ -163,17 +163,14 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
     end
   end
 
-  def find_attachments(parts, attachments=[])
-    if parts.parts.count > 0
-      parts.parts.each do |part|
-        attachments = find_attachments(part, attachments)
-      end
-    elsif parts.filename
-      attachment = { "filename" => parts.filename }
+  def parse_attachments(mail)
+    attachments = []
+    mail.all_parts.select{ |p| p.attachment?}.each do |attachment|
       if @save_attachments
-        attachment['data'] = parts.body.encoded
+        attachments << { "filename" => attachment.filename, "data" => attachment.body.encoded }
+      else
+        attachments << { "filename" => attachment.filename}
       end
-      attachments << attachment
     end
     return attachments
   end
@@ -193,8 +190,10 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       rescue NoMethodError
            message = mail.body.decoded
       end
-      # Recursively search for attachments
-      attachments = find_attachments(mail.parts)
+
+      # Parse attachments
+      attachments = parse_attachments(mail)
+
     end
 
     @codec.decode(message) do |event|
@@ -228,7 +227,7 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       end
 
       # Add attachments
-      event.set('attachments', attachments) if attachments
+      event.set('attachments', attachments) if attachments.length > 0
 
       decorate(event)
       event

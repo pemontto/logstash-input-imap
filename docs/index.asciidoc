@@ -220,8 +220,6 @@ processed mail and then switch `uid_tracking` to `true`.
 
 
 
-
-
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
 
