@@ -74,7 +74,6 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       @logger.info("Loading \"uid_last_value\": \"#{@uid_last_value}\"")
     end
 
-    @content_type_re = Regexp.new("^" + @content_type)
   end # def register
 
   def connect
@@ -164,19 +163,6 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
     end
   end
 
-  def find_content(parts, found=nil)
-    return found if found
-    if parts.parts.count > 0
-      parts.parts.each do |part|
-        found = find_content(part)
-        return found if found
-      end
-    elsif parts.content_type.match @content_type_re
-      return parts.decoded
-    end
-    return nil
-  end
-
   def find_attachments(parts, attachments=[])
     if parts.parts.count > 0
       parts.parts.each do |part|
@@ -201,8 +187,12 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       # No multipart message, just use the body as the event text
       message = mail.body.decoded
     else
-      # Recursively search for the content-type we want
-      message = find_content(mail.parts)
+      part = mail.all_parts.detect { |p| p.mime_type == @content_type } || mail.parts.first
+      begin
+           message = part.decoded
+      rescue NoMethodError
+           message = mail.body.decoded
+      end
       # Recursively search for attachments
       attachments = find_attachments(mail.parts)
     end
