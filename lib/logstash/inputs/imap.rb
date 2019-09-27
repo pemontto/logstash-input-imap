@@ -22,7 +22,7 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
   config :secure, :validate => :boolean, :default => true
   config :verify_cert, :validate => :boolean, :default => true
 
-  config :folder, :validate => :string, :default => 'INBOX'
+  config :folder, :validate => :string, :default => "INBOX"
   config :fetch_count, :validate => :number, :default => 50
   config :lowercase_headers, :validate => :boolean, :default => true
   config :check_interval, :validate => :number, :default => 300
@@ -73,13 +73,12 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       @uid_last_value = File.read(@sincedb_path).to_i
       @logger.info("Loading \"uid_last_value\": \"#{@uid_last_value}\"")
     end
-
   end # def register
 
   def connect
     sslopt = @secure
     if @secure and not @verify_cert
-        sslopt = { :verify_mode => OpenSSL::SSL::VERIFY_NONE }
+      sslopt = { :verify_mode => OpenSSL::SSL::VERIFY_NONE }
     end
     imap = Net::IMAP.new(@host, :port => @port, :ssl => sslopt)
     imap.login(@user, @password.value)
@@ -105,7 +104,7 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       if @uid_last_value
         # If there are no new messages, uid_search returns @uid_last_value
         # because it is the last message, so we need to delete it.
-        ids = imap.uid_search(["UID", (@uid_last_value+1..-1)]).delete_if { |uid|
+        ids = imap.uid_search(["UID", (@uid_last_value + 1..-1)]).delete_if { |uid|
           uid <= @uid_last_value
         }
       else
@@ -133,7 +132,7 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
         @uid_last_value = item.attr["UID"]
         @logger.debug? && @logger.debug("#{@user}@#{@host}:#{@port}/#{@folder}: Marking #{item.attr["UID"]} as read: #{mark_read}, delete: #{@delete}, expunge: #{@expunge}")
         if (@uid_tracking && @mark_read) || @delete || @expunge
-          imap.uid_store(@uid_last_value, '+FLAGS', @delete || @expunge ? :Deleted : :Seen)
+          imap.uid_store(@uid_last_value, "+FLAGS", @delete || @expunge ? :Deleted : :Seen)
         end
         # Stop message processing if it is requested
         break if stop?
@@ -145,7 +144,6 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
       # Stop message fetching if it is requested
       break if stop?
     end
-
   rescue => e
     @logger.error("#{@user}@#{@host}:#{@port}/#{@folder}: Encountered error #{e.class}", :message => e.message, :backtrace => e.backtrace)
     # Do not raise error, check_mail will be invoked in the next run time
@@ -165,11 +163,11 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
 
   def parse_attachments(mail)
     attachments = []
-    mail.all_parts.select{ |p| p.attachment?}.each do |attachment|
+    mail.all_parts.select { |p| p.attachment? }.each do |attachment|
       if @save_attachments
         attachments << { "filename" => attachment.filename, "data" => attachment.body.encoded }
       else
-        attachments << { "filename" => attachment.filename}
+        attachments << { "filename" => attachment.filename }
       end
     end
     return attachments
@@ -186,14 +184,13 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
     else
       part = mail.all_parts.detect { |p| p.mime_type == @content_type } || mail.parts.first
       begin
-           message = part.decoded
+        message = part.decoded
       rescue NoMethodError
-           message = mail.body.decoded
+        message = mail.body.decoded
       end
 
       # Parse attachments
       attachments = parse_attachments(mail)
-
     end
 
     @codec.decode(message) do |event|
@@ -228,7 +225,7 @@ class LogStash::Inputs::IMAP < LogStash::Inputs::Base
 
       # Add attachments
       if attachments and attachments.length > 0
-        event.set('attachments', attachments)
+        event.set("attachments", attachments)
       end
 
       decorate(event)
